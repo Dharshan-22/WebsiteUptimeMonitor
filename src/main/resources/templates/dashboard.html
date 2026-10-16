@@ -1,0 +1,808 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Dashboard · Uptime Monitor</title>
+    <style>
+        /* ── Reset & base ──────────────────────────────────────────────── */
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: #0f172a;
+            color: #e2e8f0;
+            min-height: 100vh;
+            padding: 0 0 60px;
+        }
+
+        /* ── Top nav ───────────────────────────────────────────────────── */
+        nav {
+            background: #1e293b;
+            border-bottom: 1px solid #334155;
+            padding: 0 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            height: 56px;
+        }
+        nav .brand {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: #f8fafc;
+            text-decoration: none;
+        }
+        nav .brand span { color: #38bdf8; }
+        nav .nav-links { display: flex; gap: 8px; }
+        nav .nav-links a {
+            color: #94a3b8;
+            text-decoration: none;
+            padding: 6px 14px;
+            border-radius: 8px;
+            font-size: 0.88rem;
+            transition: background .15s, color .15s;
+        }
+        nav .nav-links a:hover  { background: #334155; color: #f1f5f9; }
+        nav .nav-links a.active { background: #0ea5e9; color: #fff; }
+
+        /* ── Page wrapper ──────────────────────────────────────────────── */
+        .page { max-width: 1050px; margin: 0 auto; padding: 32px 16px; }
+
+        /* ── Page heading ──────────────────────────────────────────────── */
+        .page-heading {
+            margin-bottom: 28px;
+        }
+        .page-heading h1 {
+            font-size: 1.65rem;
+            font-weight: 700;
+            color: #f8fafc;
+        }
+        .page-heading p {
+            margin-top: 4px;
+            color: #64748b;
+            font-size: 0.88rem;
+        }
+
+        /* ── Flash messages ────────────────────────────────────────────── */
+        .flash {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            padding: 12px 16px;
+            border-radius: 10px;
+            font-size: 0.88rem;
+            margin-bottom: 20px;
+            border: 1px solid transparent;
+        }
+        .flash.success {
+            background: #052e16;
+            border-color: #16a34a;
+            color: #86efac;
+        }
+        .flash.error {
+            background: #1f0e0e;
+            border-color: #dc2626;
+            color: #fca5a5;
+        }
+        .flash.info {
+            background: #0c1f36;
+            border-color: #0ea5e9;
+            color: #7dd3fc;
+        }
+
+        /* ── Add-site card ─────────────────────────────────────────────── */
+        .add-card {
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 14px;
+            padding: 24px;
+            margin-bottom: 28px;
+        }
+        .add-card h2 {
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: #94a3b8;
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
+            margin-bottom: 16px;
+        }
+        .add-form-row {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .add-form-row input {
+            padding: 10px 14px;
+            border-radius: 9px;
+            border: 1px solid #475569;
+            background: #0f172a;
+            color: #f1f5f9;
+            font-size: 0.93rem;
+            outline: none;
+            transition: border-color .2s;
+        }
+        .add-form-row input:focus { border-color: #38bdf8; }
+        .add-form-row input::placeholder { color: #475569; }
+        .input-name { width: 180px; flex-shrink: 0; }
+        .input-url  { flex: 1; min-width: 200px; }
+        .btn-add {
+            padding: 10px 20px;
+            background: #0ea5e9;
+            color: #fff;
+            border: none;
+            border-radius: 9px;
+            font-size: 0.93rem;
+            font-weight: 600;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: background .2s;
+        }
+        .btn-add:hover { background: #38bdf8; }
+
+        .form-hint {
+            margin-top: 10px;
+            font-size: 0.77rem;
+            color: #475569;
+        }
+
+        /* ── Sites table wrapper ───────────────────────────────────────── */
+        .sites-section h2 {
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: #94a3b8;
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
+            margin-bottom: 14px;
+        }
+
+        /* ── Empty state ───────────────────────────────────────────────── */
+        .empty-state {
+            background: #1e293b;
+            border: 1px dashed #334155;
+            border-radius: 14px;
+            padding: 48px;
+            text-align: center;
+            color: #64748b;
+        }
+        .empty-state .icon { font-size: 2.5rem; margin-bottom: 12px; }
+        .empty-state p { font-size: 0.9rem; }
+
+        /* ── Site cards grid ───────────────────────────────────────────── */
+        .sites-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .site-card {
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 12px;
+            padding: 18px 20px;
+            display: grid;
+            grid-template-columns: auto 1fr auto;
+            align-items: center;
+            gap: 16px;
+            transition: border-color .2s;
+        }
+        .site-card:hover { border-color: #475569; }
+        .site-card.up   { border-left: 4px solid #16a34a; }
+        .site-card.down { border-left: 4px solid #dc2626; }
+        .site-card.unknown { border-left: 4px solid #475569; }
+        .site-card.selected { border-color: #38bdf8; box-shadow: 0 0 12px rgba(56,189,248,0.15); }
+
+        /* Status badge */
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 4px 12px;
+            border-radius: 999px;
+            font-size: 0.78rem;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            white-space: nowrap;
+        }
+        .status-badge .dot {
+            width: 7px; height: 7px;
+            border-radius: 50%;
+        }
+        .status-badge.up      { background: rgba(22,163,74,.15);  color: #4ade80; }
+        .status-badge.up .dot { background: #4ade80; }
+        .status-badge.down      { background: rgba(220,38,38,.15); color: #f87171; }
+        .status-badge.down .dot { background: #f87171; }
+        .status-badge.unknown      { background: rgba(71,85,105,.2); color: #94a3b8; }
+        .status-badge.unknown .dot { background: #94a3b8; }
+
+        /* Site info */
+        .site-info .site-name {
+            font-size: 1rem;
+            font-weight: 600;
+            color: #f1f5f9;
+            margin-bottom: 3px;
+        }
+        .site-info .site-url {
+            font-size: 0.8rem;
+            color: #64748b;
+            word-break: break-all;
+        }
+
+        /* Metrics row */
+        .metrics-row {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+            margin-top: 10px;
+        }
+        .metric {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+        .metric-lbl {
+            font-size: 0.68rem;
+            text-transform: uppercase;
+            letter-spacing: 0.7px;
+            color: #475569;
+        }
+        .metric-val {
+            font-size: 0.92rem;
+            font-weight: 600;
+            color: #e2e8f0;
+        }
+        .metric-val .unit { font-size: 0.75rem; color: #64748b; margin-left: 2px; }
+
+        /* Last-checked timestamp */
+        .last-checked {
+            font-size: 0.72rem;
+            color: #475569;
+            margin-top: 8px;
+        }
+
+        /* Error inline */
+        .site-error {
+            margin-top: 8px;
+            font-size: 0.78rem;
+            color: #f87171;
+            background: rgba(220,38,38,0.08);
+            border-left: 3px solid #dc2626;
+            padding: 6px 10px;
+            border-radius: 4px;
+        }
+
+        /* Action buttons */
+        .site-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            align-items: flex-end;
+        }
+        .btn-sm {
+            padding: 7px 14px;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.82rem;
+            font-weight: 600;
+            cursor: pointer;
+            white-space: nowrap;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            transition: background .15s, transform .1s, color .15s;
+        }
+        .btn-sm:active { transform: scale(0.97); }
+        .btn-check-now {
+            background: #0ea5e9;
+            color: #fff;
+        }
+        .btn-check-now:hover { background: #38bdf8; }
+        .btn-history {
+            background: #334155;
+            color: #38bdf8;
+            border: 1px solid #475569;
+        }
+        .btn-history:hover { background: #475569; color: #7dd3fc; }
+        .btn-remove {
+            background: transparent;
+            color: #64748b;
+            border: 1px solid #334155;
+        }
+        .btn-remove:hover { background: rgba(220,38,38,0.12); color: #f87171; border-color: #dc2626; }
+
+        /* Spinner on check-now buttons */
+        .btn-spinner {
+            display: none;
+            width: 12px; height: 12px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-top-color: #fff;
+            border-radius: 50%;
+            animation: spin 0.7s linear infinite;
+            vertical-align: middle;
+            margin-left: 4px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* ── History Section ───────────────────────────────────────────── */
+        .history-section {
+            margin-top: 48px;
+            scroll-margin-top: 70px;
+        }
+        .history-header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 14px;
+            margin-bottom: 16px;
+        }
+        .history-header-row h2 {
+            font-size: 1.15rem;
+            font-weight: 700;
+            color: #f8fafc;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .history-filter-box {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .history-select {
+            padding: 8px 14px;
+            border-radius: 8px;
+            border: 1px solid #475569;
+            background: #1e293b;
+            color: #f1f5f9;
+            font-size: 0.88rem;
+            outline: none;
+            cursor: pointer;
+            transition: border-color .2s;
+        }
+        .history-select:focus { border-color: #38bdf8; }
+        .filter-status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 10px;
+            background: rgba(14,165,233,0.12);
+            border: 1px solid #0ea5e9;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            color: #7dd3fc;
+        }
+        .btn-clear-filter {
+            padding: 5px 10px;
+            background: rgba(220,38,38,0.12);
+            color: #f87171;
+            border: 1px solid #dc2626;
+            border-radius: 6px;
+            font-size: 0.78rem;
+            text-decoration: none;
+            font-weight: 600;
+            transition: background .15s;
+        }
+        .btn-clear-filter:hover { background: rgba(220,38,38,0.22); color: #fca5a5; }
+
+        /* History Card & Table */
+        .history-card {
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 14px;
+            overflow: hidden;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        }
+        .table-responsive {
+            width: 100%;
+            overflow-x: auto;
+        }
+        .history-table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+            font-size: 0.88rem;
+        }
+        .history-table th {
+            background: #0f172a;
+            color: #94a3b8;
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 0.72rem;
+            letter-spacing: 0.7px;
+            padding: 14px 16px;
+            border-bottom: 1px solid #334155;
+            white-space: nowrap;
+        }
+        .history-table td {
+            padding: 14px 16px;
+            border-bottom: 1px solid #334155;
+            color: #e2e8f0;
+            vertical-align: middle;
+        }
+        .history-table tbody tr:last-child td {
+            border-bottom: none;
+        }
+        .history-table tbody tr:hover td {
+            background: rgba(255,255,255,0.02);
+        }
+
+        .hist-site-name {
+            font-weight: 600;
+            color: #f1f5f9;
+            margin-bottom: 2px;
+        }
+        .hist-site-url {
+            font-size: 0.78rem;
+            color: #64748b;
+            word-break: break-all;
+            text-decoration: none;
+        }
+        .hist-site-url:hover { text-decoration: underline; color: #94a3b8; }
+
+        .hist-time {
+            font-size: 0.82rem;
+            color: #94a3b8;
+            white-space: nowrap;
+        }
+
+        .hist-http {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            font-weight: 600;
+            font-size: 0.84rem;
+        }
+        .hist-http .code-ok  { color: #4ade80; }
+        .hist-http .code-err { color: #f87171; }
+
+        .hist-resp-time {
+            font-weight: 600;
+            color: #f1f5f9;
+            white-space: nowrap;
+        }
+        .hist-resp-time .unit {
+            font-size: 0.74rem;
+            color: #64748b;
+            margin-left: 2px;
+        }
+
+        .hist-error {
+            font-size: 0.8rem;
+            color: #f87171;
+            background: rgba(220,38,38,0.08);
+            border-left: 2px solid #dc2626;
+            padding: 4px 8px;
+            border-radius: 4px;
+            max-width: 240px;
+            word-break: break-word;
+        }
+
+        /* ── Responsive ────────────────────────────────────────────────── */
+        @media (max-width: 720px) {
+            .site-card {
+                grid-template-columns: 1fr;
+            }
+            .site-actions {
+                flex-direction: row;
+                align-items: center;
+                flex-wrap: wrap;
+            }
+            .input-name { width: 100%; }
+            .add-form-row { flex-direction: column; }
+            .history-header-row {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<!-- Navigation -->
+<nav>
+    <a class="brand" href="/">🌐 Uptime <span>Monitor</span></a>
+    <div class="nav-links">
+        <a href="/">Quick Check</a>
+        <a href="/dashboard" class="active">Dashboard</a>
+        <a href="#history">History</a>
+    </div>
+</nav>
+
+<div class="page">
+
+    <div class="page-heading">
+        <h1>📊 Monitoring Dashboard</h1>
+        <p>Add websites to monitor, check their status on demand, and review historical checks.</p>
+    </div>
+
+    <!-- Flash: add error (validation failed) -->
+    <div th:if="${addError}" class="flash error">
+        ⚠ <span th:text="${addError}"></span>
+    </div>
+
+    <!-- Flash: add success -->
+    <div th:if="${addSuccess}" class="flash success">
+        ✓ <span th:text="${addSuccess}"></span>
+    </div>
+
+    <!-- Flash: remove success -->
+    <div th:if="${removeSuccess}" class="flash info">
+        🗑 <span th:text="${removeSuccess}"></span>
+    </div>
+
+    <!-- Flash: any global error -->
+    <div th:if="${globalError}" class="flash error">
+        ⚠ <span th:text="${globalError}"></span>
+    </div>
+
+    <!-- ── Add Website Form ──────────────────────────────────────────────── -->
+    <div class="add-card">
+        <h2>➕ Add Website</h2>
+        <form action="/dashboard/add" method="post" autocomplete="off">
+            <div class="add-form-row">
+                <input
+                    type="text"
+                    name="name"
+                    class="input-name"
+                    placeholder="Display name"
+                    th:value="${addName}"
+                    maxlength="100"
+                    required
+                />
+                <input
+                    type="text"
+                    name="url"
+                    class="input-url"
+                    placeholder="https://example.com"
+                    th:value="${addUrl}"
+                    autocapitalize="none"
+                    spellcheck="false"
+                    required
+                />
+                <button type="submit" class="btn-add">Add Site</button>
+            </div>
+            <p class="form-hint">
+                Only public http/https URLs are accepted. Localhost and private IPs are blocked.
+            </p>
+        </form>
+    </div>
+
+    <!-- ── Sites List ────────────────────────────────────────────────────── -->
+    <div class="sites-section">
+        <h2>Monitored Sites (<span th:text="${sites.size()}">0</span>)</h2>
+
+        <!-- Empty state -->
+        <div th:if="${sites.isEmpty()}" class="empty-state">
+            <div class="icon">🔍</div>
+            <p>No sites added yet. Use the form above to start monitoring.</p>
+        </div>
+
+        <!-- Site cards -->
+        <div class="sites-grid" th:if="${!sites.isEmpty()}">
+            <div th:each="site : ${sites}"
+                 th:classappend="(${site.statusLabel == 'UP'} ? 'up' : (${site.statusLabel == 'DOWN'} ? 'down' : 'unknown')) + (${selectedSiteId != null and selectedSiteId == site.id} ? ' selected' : '')"
+                 class="site-card">
+
+                <!-- Status badge -->
+                <div>
+                    <span th:classappend="${site.statusLabel == 'UP'} ? 'up' : (${site.statusLabel == 'DOWN'} ? 'down' : 'unknown')"
+                          class="status-badge">
+                        <span class="dot"></span>
+                        <span th:text="${site.statusLabel}">UNKNOWN</span>
+                    </span>
+                </div>
+
+                <!-- Site info + metrics -->
+                <div class="site-info">
+                    <div class="site-name" th:text="${site.name}">Site Name</div>
+                    <div class="site-url">
+                        <a th:href="${site.url}" th:text="${site.url}"
+                           target="_blank" rel="noopener noreferrer"
+                           style="color:#64748b; text-decoration:none;">
+                        </a>
+                    </div>
+
+                    <!-- Metrics row — shown only after first check -->
+                    <div class="metrics-row" th:if="${site.checked}">
+                        <div class="metric">
+                            <span class="metric-lbl">HTTP</span>
+                            <span class="metric-val">
+                                <span th:text="${site.lastResult.httpStatusCode != 0 ? site.lastResult.httpStatusCode : '—'}"></span>
+                                <span class="unit" th:if="${site.lastResult.httpStatusCode != 0}"
+                                      th:text="${site.lastResult.httpStatusText}"></span>
+                            </span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-lbl">Response</span>
+                            <span class="metric-val">
+                                <span th:text="${site.lastResult.responseTimeMs > 0 ? site.lastResult.responseTimeMs : '—'}"></span>
+                                <span class="unit" th:if="${site.lastResult.responseTimeMs > 0}">ms</span>
+                            </span>
+                        </div>
+                    </div>
+
+                    <!-- Not-yet-checked hint -->
+                    <div class="last-checked" th:if="${!site.checked}">
+                        Not checked yet — click Check Now
+                    </div>
+
+                    <!-- Last checked timestamp -->
+                    <div class="last-checked"
+                         th:if="${site.checked and site.lastCheckedAt != null}"
+                         th:text="'Last checked: ' + ${#temporals.format(site.lastCheckedAt, 'dd MMM yyyy, HH:mm:ss')}">
+                    </div>
+
+                    <!-- Inline error message -->
+                    <div class="site-error"
+                         th:if="${site.checked and site.lastResult.errorMessage != null and !site.lastResult.errorMessage.isEmpty()}"
+                         th:text="'⚠ ' + ${site.lastResult.errorMessage}">
+                    </div>
+                </div>
+
+                <!-- Action buttons -->
+                <div class="site-actions">
+                    <!-- Check Now -->
+                    <form th:action="@{/dashboard/check-now/{id}(id=${site.id})}" method="post"
+                          th:id="'form-check-' + ${site.id}"
+                          onsubmit="startCheck(this)">
+                        <button type="submit" class="btn-sm btn-check-now">
+                            Check Now
+                            <span class="btn-spinner" th:id="'spinner-' + ${site.id}"></span>
+                        </button>
+                    </form>
+
+                    <!-- View History -->
+                    <a th:href="@{/dashboard(siteId=${site.id})} + '#history'" class="btn-sm btn-history">
+                        History
+                    </a>
+
+                    <!-- Remove -->
+                    <form th:action="@{/dashboard/remove/{id}(id=${site.id})}" method="post">
+                        <button type="submit" class="btn-sm btn-remove"
+                                onclick="return confirm('Remove this site from the dashboard?')">
+                            Remove
+                        </button>
+                    </form>
+                </div>
+
+            </div><!-- /site-card -->
+        </div><!-- /sites-grid -->
+    </div>
+
+    <!-- ── Phase 4: Monitoring History Section ───────────────────────────── -->
+    <div class="history-section" id="history">
+        <div class="history-header-row">
+            <h2>🕒 Monitoring History</h2>
+
+            <!-- History filter controls -->
+            <div class="history-filter-box" th:if="${!sites.isEmpty()}">
+                <span class="filter-status-badge" th:if="${selectedSite != null}">
+                    Filtered: <strong th:text="${selectedSite.name}">Site</strong>
+                </span>
+
+                <a th:if="${selectedSite != null}" th:href="@{/dashboard#history}" class="btn-clear-filter">
+                    ✕ Show All
+                </a>
+
+                <select class="history-select" onchange="window.location.href=this.value;">
+                    <option th:value="@{/dashboard#history}"
+                            th:selected="${selectedSiteId == null or selectedSiteId == ''}">
+                        — All Monitored Websites —
+                    </option>
+                    <option th:each="s : ${sites}"
+                            th:value="@{/dashboard(siteId=${s.id})} + '#history'"
+                            th:selected="${selectedSiteId == s.id}"
+                            th:text="${s.name} + ' (' + ${s.url} + ')'">
+                    </option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Empty history state -->
+        <div th:if="${history.isEmpty()}" class="empty-state">
+            <div class="icon">📜</div>
+            <p th:if="${selectedSite != null}">
+                No check history found for <strong th:text="${selectedSite.name}">Site</strong>.<br/>
+                Click <span style="color:#38bdf8; font-weight:600;">Check Now</span> on its card above to record the first check.
+            </p>
+            <p th:if="${selectedSite == null}">
+                No monitoring checks recorded yet.<br/>
+                Add a website above and click <span style="color:#38bdf8; font-weight:600;">Check Now</span> to start recording history.
+            </p>
+        </div>
+
+        <!-- History table -->
+        <div class="history-card" th:if="${!history.isEmpty()}">
+            <div class="table-responsive">
+                <table class="history-table">
+                    <thead>
+                        <tr>
+                            <th>Status</th>
+                            <th>Website</th>
+                            <th>Checked At</th>
+                            <th>HTTP Status</th>
+                            <th>Response Time</th>
+                            <th>Details</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr th:each="item : ${history}">
+                            <!-- Status badge -->
+                            <td>
+                                <span th:classappend="${item.isUp()} ? 'up' : 'down'" class="status-badge">
+                                    <span class="dot"></span>
+                                    <span th:text="${item.status}">UP</span>
+                                </span>
+                            </td>
+
+                            <!-- Website name & URL -->
+                            <td>
+                                <div class="hist-site-name" th:text="${item.siteName}">Google</div>
+                                <a th:href="${item.url}" th:text="${item.url}"
+                                   target="_blank" rel="noopener noreferrer"
+                                   class="hist-site-url">
+                                </a>
+                            </td>
+
+                            <!-- Timestamp -->
+                            <td class="hist-time"
+                                th:text="${#temporals.format(item.checkedAt, 'dd MMM yyyy, HH:mm:ss')}">
+                                17 Oct 2026, 01:00:00
+                            </td>
+
+                            <!-- HTTP status code and text -->
+                            <td class="hist-http">
+                                <span th:if="${item.httpStatusCode != 0}"
+                                      th:class="${item.isUp()} ? 'code-ok' : 'code-err'"
+                                      th:text="${item.httpStatusCode} + ' ' + ${item.httpStatusText}">
+                                    200 OK
+                                </span>
+                                <span th:if="${item.httpStatusCode == 0}" class="code-err">
+                                    0 N/A
+                                </span>
+                            </td>
+
+                            <!-- Response time -->
+                            <td class="hist-resp-time">
+                                <span th:if="${item.responseTimeMs > 0}">
+                                    <span th:text="${item.responseTimeMs}">120</span><span class="unit">ms</span>
+                                </span>
+                                <span th:if="${item.responseTimeMs <= 0}" style="color:#64748b;">—</span>
+                            </td>
+
+                            <!-- Details / Error message -->
+                            <td>
+                                <div th:if="${item.errorMessage != null and !item.errorMessage.isEmpty()}"
+                                     class="hist-error"
+                                     th:text="${item.errorMessage}">
+                                </div>
+                                <span th:if="${item.errorMessage == null or item.errorMessage.isEmpty()}"
+                                      style="color:#64748b;">
+                                    —
+                                </span>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+</div><!-- /page -->
+
+<script>
+    function startCheck(form) {
+        // Show spinner on the clicked button
+        const formId  = form.id;                        // e.g. "form-check-<uuid>"
+        const siteId  = formId.replace('form-check-', '');
+        const spinner = document.getElementById('spinner-' + siteId);
+        if (spinner) spinner.style.display = 'inline-block';
+        // Safety: hide spinner if page doesn't reload in 15s
+        setTimeout(() => {
+            if (spinner) spinner.style.display = 'none';
+        }, 15000);
+    }
+</script>
+
+</body>
+</html>
